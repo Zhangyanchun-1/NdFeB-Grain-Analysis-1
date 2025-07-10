@@ -1,1 +1,47 @@
+name: NdFeB Grain Analysis
 
+on:
+  push:
+    paths:
+      - 'images/**'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.10-slim
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y libgl1 libglib2.0-0
+        pip install -r scripts/requirements.txt
+        
+    - name: Run analysis
+      run: |
+        mkdir -p results
+        python scripts/analyze_grains.py \
+          --input_dir images \
+          --output_dir results \
+          --pixel_size 0.1 \
+          --min_grain_size 50
+          
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: grain-analysis-results
+        path: results/
+        retention-days: 7
+        
+    - name: Generate report
+      run: |
+        echo "# Analysis Report" > report.md
+        echo "## Processed Images" >> report.md
+        ls -1 images >> report.md
+        echo "## Results Summary" >> report.md
+        cat results/analysis_summary.json >> report.md
